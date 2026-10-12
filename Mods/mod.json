@@ -1,0 +1,9 @@
+{
+    "id": "ShipSchematics",
+    "name": "Ship Schematics",
+    "author": "VILIK",
+    "version": "1.0.0",
+    "description": "Hold P to save the ship you are on. Tap P to open the collection and place a ship.",
+    "thumbnail": "thumbnail.png",
+    "images": ["ships.png", "save.png"]
+}
