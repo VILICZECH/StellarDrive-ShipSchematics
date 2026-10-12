@@ -2,7 +2,7 @@
     "id": "ShipSchematics",
     "name": "Ship Schematics",
     "author": "VILIK",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Hold P to save or overwrite the ship you are standing on, including its cable connections. Tap P to open the collection. There you can search, sort by name, date, or size, rename, delete, and import or export .schematic files. Placing a ship in a creative world builds it at once. In survival it leaves a blueprint you supply with materials, and Shift-click moves a whole stack. The recycler scraps a blueprint and returns what you already delivered. Blueprints remain after the world is saved. Only the host can place a ship.",
     "thumbnail": "thumbnail.jpg",
     "images": ["place.png", "save.png"],
