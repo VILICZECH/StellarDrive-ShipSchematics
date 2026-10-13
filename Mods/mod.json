@@ -3,7 +3,7 @@
     "name": "Ship Schematics",
     "author": "VILIK",
     "version": "1.0.1",
-    "description": "Hold P to save or overwrite the ship you are standing on, including its cable connections. Tap P to open the collection. There you can search, sort by name, date, or size, rename, delete, and import or export .schematic files. Placing a ship in a creative world builds it at once. In survival it leaves a blueprint you supply with materials, and Shift-click moves a whole stack. The recycler scraps a blueprint and returns what you already delivered. Blueprints remain after the world is saved. Only the host can place a ship.",
+    "description": "Built the perfect ship? Save it once and build it again anywhere.\n\n• Hold P to save the ship you are standing on, wiring included, as a new schematic or over an old one\n• Tap P to open your collection: search, sort by name, date or size, rename and delete\n• Share ships with friends by importing and exporting .schematic files\n• Creative world (with the Creative mode mod): the ship appears instantly\n• Survival: place a hologram blueprint and fill it with materials, Shift-click delivers a whole stack\n• Changed your mind? The recycler scraps a blueprint and gives back everything you delivered\n• Blueprints stay in the world when you save it\n\nIn multiplayer only the host can place ships.",
     "thumbnail": "thumbnail.jpg",
     "images": ["place.png", "save.png"],
     "videos": [

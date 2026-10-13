@@ -1,5 +1,15 @@
 # Ship Schematics
 
-Hold P to save or overwrite the ship you are standing on, including its cable connections. Tap P to open the collection. There you can search, sort by name, date, or size, rename, delete, and import or export .schematic files. Placing a ship in a creative world builds it at once. In survival it leaves a blueprint you supply with materials, and Shift-click moves a whole stack. The recycler scraps a blueprint and returns what you already delivered. Blueprints remain after the world is saved. Only the host can place a ship.
+Built the perfect ship? Save it once and build it again anywhere.
+
+- Hold P to save the ship you are standing on, wiring included, as a new schematic or over an old one
+- Tap P to open your collection: search, sort by name, date or size, rename and delete
+- Share ships with friends by importing and exporting .schematic files
+- Creative world (with the Creative mode mod): the ship appears instantly
+- Survival: place a hologram blueprint and fill it with materials, Shift-click delivers a whole stack
+- Changed your mind? The recycler scraps a blueprint and gives back everything you delivered
+- Blueprints stay in the world when you save it
+
+In multiplayer only the host can place ships.
 
 MelonLoader mod for Stellar Drive.
