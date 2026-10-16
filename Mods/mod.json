@@ -1,12 +1,11 @@
 {
-    "id": "ShipSchematics",
-    "name": "Ship Schematics",
-    "author": "VILIK",
-    "version": "1.0.1",
-    "description": "Built the perfect ship? Save it once and build it again anywhere.\n\n• Hold P to save the ship you are standing on, wiring included, as a new schematic or over an old one\n• Tap P to open your collection: search, sort by name, date or size, rename and delete\n• Share ships with friends by importing and exporting .schematic files\n• Creative world (with the Creative mode mod): the ship appears instantly\n• Survival: place a hologram blueprint and fill it with materials, Shift-click delivers a whole stack\n• Changed your mind? The recycler scraps a blueprint and gives back everything you delivered\n• Blueprints stay in the world when you save it\n\nIn multiplayer only the host can place ships.",
-    "thumbnail": "thumbnail.jpg",
-    "images": ["place.png", "save.png"],
-    "videos": [
-        "https://www.youtube.com/watch?v=sp4cbeaqXXI"
-    ]
+  "id": "ShipSchematics",
+  "name": "Ship Schematics",
+  "version": "1.0.2",
+  "author": "VILIK",
+  "description": "Built the perfect ship? Save it once and build it again anywhere.\n\n• Hold P to save the ship you are standing on, as a new schematic or over an old one. Wiring, rotor and piston heads, docked ships and the wires between them are all included\n• Tap P to open your collection: search, sort by name, date or size, rename and delete\n• Share ships with friends by importing and exporting .schematic files\n• Creative world (with the Creative mode mod): the ship appears instantly\n• Survival: place a hologram blueprint and fill it with materials, Shift-click delivers a whole stack\n• Changed your mind? The recycler scraps a blueprint and gives back everything you delivered\n• Blueprints stay in the world when you save it\n\nIn multiplayer only the host can place ships.",
+  "thumbnail": "thumbnail.jpg",
+  "videos": [
+    "https://www.youtube.com/watch?v=sp4cbeaqXXI"
+  ]
 }
