@@ -1,5 +1,7 @@
 # Ship Schematics
 
+![Ship Schematics](Mods/thumbnail.jpg)
+
 Built the perfect ship? Save it once and build it again anywhere.
 
 - Hold P to save the ship you are standing on, as a new schematic or over an old one. Wiring, rotor and piston heads, docked ships and the wires between them are all included
