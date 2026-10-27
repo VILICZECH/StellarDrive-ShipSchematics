@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using FishNet;
+using HarmonyLib;
 using Items.Model;
 using MelonLoader;
 using Saving.Serialization.V15.Ships;
+using Ships;
 using Ships.Interface.Model;
 using Ships.Interface.Model.Joints;
 using Ships.Interface.Model.Parts;
@@ -13,6 +16,7 @@ using Ships.Interface.Model.Placement;
 using Ships.Interface.Model.State;
 using Ships.Interface.Services;
 using Ships.Interface.Settings;
+using Ships.Joints;
 using Ships.Network.Service;
 using Ships.Services;
 using Ships.Visuals;
@@ -78,14 +82,21 @@ namespace ShipSchematics
         // Once the root ship is in the world, a sub-ship that fails is skipped and the placement still counts.
         public static bool Place(SchematicFile file, Vector3 point, Quaternion rotation, out string message)
         {
+            return Place(file, ClientOrigin.LocalPhysicsSpaceId, point, rotation, out message, true);
+        }
+
+        public static bool Place(SchematicFile file, uint spaceId, Vector3 point, Quaternion rotation, out string message, bool claim)
+        {
             message = "Could not place the ship.";
             if (file == null || string.IsNullOrEmpty(file.shipJson))
                 return false;
             if (!InstanceFinder.IsServerStarted)
             {
-                message = "Only the host can place a ship.";
+                message = "Could not reach the host.";
                 return false;
             }
+            if (spaceId == 0)
+                spaceId = ClientOrigin.LocalPhysicsSpaceId;
             var ids = GameServices.Get<IWorldObjectsIdsServerProvider>();
             var spaces = GameServices.Get<ISpacesServerProvider>();
             var ships = GameServices.Get<ShipsServerTracker>();
@@ -170,7 +181,7 @@ namespace ShipSchematics
                     serial.id = newIds[i];
                     SchematicLibrary.RetargetLinks(serial, id => map.TryGetValue(id, out uint target) ? target : 0u);
                     serial.relativeSpaceId = spaces.GetOrCreateShipRelativeSpace(serial.id);
-                    serial.spaceId = ClientOrigin.LocalPhysicsSpaceId;
+                    serial.spaceId = spaceId;
                     serial.position = point + rotation * offset;
                     serial.rotation = rotation * turn;
                     serial.velocity = Vector3.zero;
@@ -186,7 +197,10 @@ namespace ShipSchematics
             ShipInteractionNotifier notifier = GameServices.Get<ShipInteractionNotifier>();
             var placed = new List<(uint ship, uint space)>();
             int skipped = 0;
-            for (int i = 0; i < count; i++)
+            bool rootReady = false;
+            // Heads first: OnPartAdded on a rotor looks up the child at once. The game does not rebuild a rotor
+            // joint later when AnchoredShipId is already set.
+            foreach (int i in LoadOrder(ready))
             {
                 if (ready[i] == null)
                     continue;
@@ -203,6 +217,8 @@ namespace ShipSchematics
                     skipped++;
                     continue;
                 }
+                if (i == 0)
+                    rootReady = true;
                 placed.Add((newIds[i], serials[i].relativeSpaceId));
                 if (notifier == null)
                     continue;
@@ -215,7 +231,11 @@ namespace ShipSchematics
                     MelonLogger.Warning("Could not tell the players about the new ship. " + ex.Message);
                 }
             }
-            SchematicLibrary.ClaimShips(file, placed);
+            if (!rootReady)
+                return false;
+            RelinkRotors(ready);
+            if (claim)
+                SchematicLibrary.ClaimShips(file, placed);
 
             var spawner = new CableSpawner();
             for (int i = 0; i < count; i++)
@@ -244,6 +264,109 @@ namespace ShipSchematics
                 message += " Left out parts that are not installed: " + catalog.MissingText() + ".";
             MelonLogger.Msg(message);
             return true;
+        }
+
+        // Children before the ships that hold them, so a vanilla rotor finds its head when OnPartAdded runs.
+        static List<int> LoadOrder(IShipState[] ready)
+        {
+            var order = new List<int>();
+            if (ready == null)
+                return order;
+            var byId = new Dictionary<uint, int>();
+            for (int i = 0; i < ready.Length; i++)
+            {
+                if (ready[i] != null && ready[i].Id != 0 && !byId.ContainsKey(ready[i].Id))
+                    byId[ready[i].Id] = i;
+            }
+            var outgoing = new List<int>[ready.Length];
+            var waiting = new int[ready.Length];
+            for (int i = 0; i < ready.Length; i++)
+            {
+                if (ready[i] == null || ready[i].StatefulParts == null)
+                    continue;
+                foreach (StatefulPart part in ready[i].StatefulParts)
+                {
+                    if (!(part.State is RotorState rotor) || rotor.AnchoredShipId == 0)
+                        continue;
+                    if (!byId.TryGetValue(rotor.AnchoredShipId, out int child) || child == i)
+                        continue;
+                    (outgoing[child] ?? (outgoing[child] = new List<int>())).Add(i);
+                    waiting[i]++;
+                }
+            }
+            var queue = new Queue<int>();
+            for (int i = 0; i < ready.Length; i++)
+            {
+                if (ready[i] != null && waiting[i] == 0)
+                    queue.Enqueue(i);
+            }
+            var seen = new bool[ready.Length];
+            while (queue.Count > 0)
+            {
+                int i = queue.Dequeue();
+                if (seen[i])
+                    continue;
+                seen[i] = true;
+                order.Add(i);
+                if (outgoing[i] == null)
+                    continue;
+                foreach (int parent in outgoing[i])
+                {
+                    waiting[parent]--;
+                    if (waiting[parent] == 0)
+                        queue.Enqueue(parent);
+                }
+            }
+            for (int i = 0; i < ready.Length; i++)
+            {
+                if (ready[i] != null && !seen[i])
+                    order.Add(i);
+            }
+            return order;
+        }
+
+        // OnPartAdded stores the rotor joint once. If the head was missing then, the cache points at a ship that
+        // did not exist. Rebuild every live rotor link now that every ship of the schematic is in the world.
+        static void RelinkRotors(IShipState[] ready)
+        {
+            ShipsJointsChangeProvider joints = GameServices.Get<ShipsJointsChangeProviderServer>();
+            ShipsServerTracker ships = GameServices.Get<ShipsServerTracker>();
+            MethodInfo added = AccessTools.Method(typeof(ShipsJointsChangeProvider), "OnPartAdded");
+            MethodInfo removed = AccessTools.Method(typeof(ShipsJointsChangeProvider), "OnPartRemoved");
+            if (joints == null || ships == null || added == null || removed == null || ready == null)
+                return;
+            for (int i = 0; i < ready.Length; i++)
+            {
+                if (ready[i] == null)
+                    continue;
+                TrackedShipServer live;
+                try
+                {
+                    live = ships.GetShip(ready[i].Id);
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+                if (live == null || live.State == null)
+                    continue;
+                foreach (StatefulPart part in live.State.GetStatefulParts())
+                {
+                    if (!(part.State is RotorState rotor) || rotor.AnchoredShipId == 0)
+                        continue;
+                    if (ships.GetShip(rotor.AnchoredShipId) == null)
+                        continue;
+                    try
+                    {
+                        removed.Invoke(joints, new object[] { live.Id, part });
+                        added.Invoke(joints, new object[] { live.Id, part });
+                    }
+                    catch (Exception ex)
+                    {
+                        MelonLogger.Warning("Could not join a rotor to its head. " + ex.Message);
+                    }
+                }
+            }
         }
 
     }

@@ -343,21 +343,23 @@ namespace ShipSchematics
         {
             if (_closed || _host == null || !TryReadHold(tracker, out uint itemId, out int quantity))
                 return;
-            int index = HoveredBin();
-            if (index < 0)
+            if (HoveredBin() < 0)
                 return;
-            int existing = _host.BinOf(itemId);
-            if (existing >= 0)
-                index = existing;
-            if (!_host.CanAccept(index, itemId))
+            if (!_host.CanStore(itemId))
                 return;
             int taken = _host.PullItems(itemId, quantity);
             if (taken <= 0)
                 return;
-            _host.PutBin(index, itemId, taken);
+            int stored = _host.Put(itemId, taken);
+            if (stored <= 0)
+            {
+                _host.ReturnItems(itemId, taken);
+                return;
+            }
             if (_closed)
                 return;
             ShowBins();
+            NoteOverflow();
             RebuildMissing();
             tracker.NotifyStopDrag();
             _host.CompleteIfReady();
@@ -674,29 +676,28 @@ namespace ShipSchematics
             InventorySlot slot = provider.GetSlot(slotId);
             if (!slot.HasItem || slot.Quantity <= 0)
                 return true;
-            int index = _host.BinOf(slot.ItemId);
-            if (index < 0)
-                index = EmptyBin();
-            if (index < 0 || !_host.CanAccept(index, slot.ItemId))
+            if (!_host.CanStore(slot.ItemId))
                 return true;
             operations.DestroySlot(slotId);
-            _host.PutBin(index, slot.ItemId, slot.Quantity);
+            int stored = _host.Put(slot.ItemId, slot.Quantity);
+            if (stored <= 0)
+            {
+                _host.ReturnItems(slot.ItemId, slot.Quantity);
+                return true;
+            }
             if (_closed)
                 return true;
             ShowBins();
+            NoteOverflow();
             RebuildMissing();
             _host.CompleteIfReady();
             return true;
         }
 
-        int EmptyBin()
+        void NoteOverflow()
         {
-            for (int i = 0; i < _slots.Length; i++)
-            {
-                if (_host.BinAt(i).Quantity <= 0)
-                    return i;
-            }
-            return -1;
+            if (_host != null && _host.BinCount > _slots.Length)
+                ScreenMessages.Status("Extra materials do not need a free slot.");
         }
 
         static float WorldWidth(RectTransform rect)

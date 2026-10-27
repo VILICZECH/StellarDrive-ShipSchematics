@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using FishNet;
 using HarmonyLib;
 using Items.Interface.Service;
 using Items.Model;
@@ -280,6 +281,34 @@ namespace ShipSchematics
             return -1;
         }
 
+        public int EmptyBin()
+        {
+            for (int i = 0; i < _bins.Length; i++)
+            {
+                if (_bins[i].Quantity <= 0)
+                    return i;
+            }
+            return -1;
+        }
+
+        public bool StillNeeds(uint itemId)
+        {
+            for (int i = 0; i < _needs.Count; i++)
+            {
+                if (_needs[i].ItemId != itemId)
+                    continue;
+                return Stored(itemId) < _needs[i].Required;
+            }
+            return false;
+        }
+
+        // The chest clone only has a handful of slots. A needed material past that still goes in, just without a
+        // visible cell; the Missing list is what the player reads.
+        public bool CanStore(uint itemId)
+        {
+            return itemId != 0 && (BinOf(itemId) >= 0 || EmptyBin() >= 0 || StillNeeds(itemId));
+        }
+
         public void PutBin(int index, uint itemId, int quantity)
         {
             if (!CanAccept(index, itemId) || quantity <= 0)
@@ -290,10 +319,29 @@ namespace ShipSchematics
             _bins[index] = bin;
         }
 
-        // A saved bin index past the menu's own slots comes from a damaged save; the menu has far fewer slots.
+        // Finds an existing or empty bin, or grows past the visible chest when the item is still missing.
+        public int Put(uint itemId, int quantity)
+        {
+            if (itemId == 0 || quantity <= 0)
+                return 0;
+            int index = BinOf(itemId);
+            if (index < 0)
+                index = EmptyBin();
+            if (index < 0)
+            {
+                if (!StillNeeds(itemId))
+                    return 0;
+                index = _bins.Length;
+                EnsureBins(index + 1);
+                MelonLogger.Msg("Blueprint " + ShipName + " accepted " + quantity + " " + ItemName(itemId) + " without a free slot.");
+            }
+            PutBin(index, itemId, quantity);
+            return quantity;
+        }
+
         public void RestoreBin(int index, uint itemId, int quantity)
         {
-            if (index < 0 || index >= 256 || itemId == 0 || quantity <= 0)
+            if (index < 0 || itemId == 0 || quantity <= 0)
                 return;
             if (index >= _bins.Length)
                 EnsureBins(index + 1);
@@ -437,6 +485,8 @@ namespace ShipSchematics
                 point = transform.position;
                 rotation = transform.rotation;
             }
+            if (!InstanceFinder.IsServerStarted)
+                return FinishOnHost(point, rotation);
             if (!SchematicPlacer.Materialize(_source, point, rotation, out string message))
             {
                 _finishing = false;
@@ -450,6 +500,34 @@ namespace ShipSchematics
             ScreenMessages.Status(message);
             Destroy(gameObject);
             return true;
+        }
+
+        bool FinishOnHost(Vector3 point, Quaternion rotation)
+        {
+            if (!SchematicNet.Request(_source, ClientOrigin.LocalPhysicsSpaceId, point, rotation, OnHostBuilt))
+            {
+                _finishing = false;
+                ScreenMessages.Status("Could not reach the host.");
+                return false;
+            }
+            ScreenMessages.Status("The host is placing your ship.");
+            return false;
+        }
+
+        void OnHostBuilt(bool ok, string message)
+        {
+            if (this == null)
+                return;
+            if (!ok)
+            {
+                _finishing = false;
+                ScreenMessages.Status(string.IsNullOrEmpty(message) ? "Could not build the ship." : message);
+                return;
+            }
+            _complete = true;
+            if (!string.IsNullOrEmpty(message))
+                ScreenMessages.Status(message);
+            Destroy(gameObject);
         }
 
         // Takes up to quantity items from the local player and returns how many were taken.

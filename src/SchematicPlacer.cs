@@ -177,14 +177,11 @@ namespace ShipSchematics
                 message = "Aim at the ground.";
                 return false;
             }
-            if (!InstanceFinder.IsServerStarted)
-            {
-                message = "Only the host can place a ship.";
-                return false;
-            }
-
-            if (!CreativeWorlds.IsCreative())
+            if (!CreativeWorlds.InstantBuild())
                 return PlaceBlueprint(source, out message);
+
+            if (!InstanceFinder.IsServerStarted)
+                return AskHost(source, out message);
 
             bool placed = Materialize(source, _point, _rotation, out message);
             if (placed)
@@ -192,9 +189,31 @@ namespace ShipSchematics
             return placed;
         }
 
+        bool AskHost(SchematicFile source, out string message)
+        {
+            uint space = ClientOrigin.LocalPhysicsSpaceId;
+            if (!SchematicNet.Request(source, space, _point, _rotation, (ok, text) =>
+                {
+                    if (!string.IsNullOrEmpty(text))
+                        ScreenMessages.Status(text);
+                }))
+            {
+                message = "Could not reach the host.";
+                return false;
+            }
+            Cancel();
+            message = "The host is placing your ship.";
+            return true;
+        }
+
         public static bool Materialize(SchematicFile source, Vector3 point, Quaternion rotation, out string message)
         {
-            return Subships.Place(source, point, rotation, out message);
+            if (!InstanceFinder.IsServerStarted)
+            {
+                message = "Could not reach the host.";
+                return false;
+            }
+            return Subships.Place(source, ClientOrigin.LocalPhysicsSpaceId, point, rotation, out message, true);
         }
 
         // A blueprint is saved with the world relative to a planet or a fixed point in space; anywhere else it would

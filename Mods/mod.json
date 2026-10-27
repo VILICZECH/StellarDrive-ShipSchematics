@@ -1,7 +1,7 @@
 {
   "id": "ShipSchematics",
   "name": "Ship Schematics",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "VILIK",
   "ai": "ai-assisted",
   "development": "inactive",
@@ -10,7 +10,7 @@
     "building",
     "sharing"
   ],
-  "description": "Built the perfect ship? Save it once and build it again anywhere.\n\n• Hold P to save the ship you are standing on, as a new schematic or over an old one. Wiring, rotor and piston heads, docked ships and the wires between them are all included\n• Tap P to open your collection: search, sort by name, date or size, rename and delete\n• Share ships with friends by importing and exporting .schematic files\n• Creative world (with the Creative mode mod): the ship appears instantly\n• Survival: place a hologram blueprint and fill it with materials, Shift-click delivers a whole stack\n• Changed your mind? The recycler scraps a blueprint and gives back everything you delivered\n• Blueprints stay in the world when you save it\n\nIn multiplayer only the host can place ships.",
+  "description": "Built the perfect ship? Save it once and build it again anywhere.\n\n• Hold P to save the ship you are standing on, as a new schematic or over an old one. Wiring, rotor and piston heads, docked ships and the wires between them are all included\n• Tap P to open your collection: search, sort by name, date or size, rename and delete\n• Share ships with friends by importing and exporting .schematic files\n• Creative world (with the Creative mode mod), or the game's free-build cheat: the ship appears instantly\n• Survival: place a hologram blueprint and fill it with materials, Shift-click delivers a whole stack\n• Changed your mind? The recycler scraps a blueprint and gives back everything you delivered\n• Blueprints stay in the world when you save it\n\nIn multiplayer each player places their own ships. The host's collection stays private.",
   "thumbnail": "thumbnail.jpg",
   "videos": [
     "https://www.youtube.com/watch?v=sp4cbeaqXXI"

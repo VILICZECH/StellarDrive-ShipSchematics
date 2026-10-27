@@ -7,12 +7,14 @@ Built the perfect ship? Save it once and build it again anywhere.
 - Hold P to save the ship you are standing on, as a new schematic or over an old one. Wiring, rotor and piston heads, docked ships and the wires between them are all included
 - Tap P to open your collection: search, sort by name, date or size, rename and delete
 - Share ships with friends by importing and exporting .schematic files
-- Creative world (with the Creative mode mod): the ship appears instantly
+- Creative world (with the Creative mode mod), or the game's free-build cheat: the ship appears instantly
 - Survival: place a hologram blueprint and fill it with materials, Shift-click delivers a whole stack
 - Changed your mind? The recycler scraps a blueprint and gives back everything you delivered
 - Blueprints stay in the world when you save it
 
-In multiplayer only the host can place ships.
+In multiplayer each player places their own ships. The host's collection stays private.
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 MelonLoader mod for Stellar Drive.
 
@@ -47,7 +49,8 @@ The DLL ends up in `src/bin/Release`. Add `-p:CopyToMods=true` to copy it into t
 | `SchematicScreen.cs`, `ShipCards.cs` | The collection and save windows: the scrolling ship list, renaming and the pictures of the ships |
 | `ScreenKit.cs` | Window parts cloned from the game's own screens: the build menu frame, buttons, text fields and dialogs |
 | `SchematicPreview.cs` | Draws a ship hologram into a picture |
-| `SchematicPlacer.cs` | The placement hologram and building the ship in a creative world |
+| `SchematicPlacer.cs` | The placement hologram and building the ship at once |
+| `SchematicNet.cs` | Sends a joining player's own schematic to the host so the host can place it |
 | `SchematicBuildSite.cs`, `BlueprintPartPoint.cs`, `BlueprintSupplyMenu.cs`, `BlueprintRecycle.cs` | Survival blueprints: material delivery and recycling |
 | `BlueprintWorld.cs` | Saves blueprints with the world and restores them on load |
 | `CreativeWorlds.cs` | Tells creative worlds by the `creative.mode` file that the Creative mode mod writes |

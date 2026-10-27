@@ -21,6 +21,7 @@ using Ships.Interface.Model.Parts.State;
 using Ships.Interface.Model.State;
 using Ships.Interface.Services;
 using Ships.Interface.Settings;
+using Ships.Joints;
 using Ships.Services;
 using UnityEngine;
 using WorldTracking.Interface.Model;
@@ -311,6 +312,29 @@ namespace ShipSchematics
             var seen = new HashSet<uint>();
             var queue = new Queue<TrackedShip>();
             queue.Enqueue(start);
+            // The built rotor tree is on the joint graph, not only on RotorState.AnchoredShipId. A vanilla rotor
+            // head is a child ship; if the state id is 0 the joint still knows it.
+            if (provider != null)
+            {
+                try
+                {
+                    if (provider.TryGetRootShip(start.State.Id, out IShipStateRead root) && root != null)
+                    {
+                        foreach (RootRelativeShipData data in provider.GetRootConnectedShips(root.Id))
+                        {
+                            if (!(data.Ship is TrackedShip tree))
+                                continue;
+                            AddCandidate(candidates, tree);
+                            if (candidates.TryGetValue(tree.State.Id, out TrackedShip queued))
+                                queue.Enqueue(queued);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MelonLogger.Warning("Could not read the rotor tree of this ship. " + ex.Message);
+                }
+            }
             while (queue.Count > 0)
             {
                 TrackedShip ship = queue.Dequeue();
@@ -427,6 +451,32 @@ namespace ShipSchematics
                 else if (part.State is DockingDoorState dock && dock.IsDocked && dock.DockedConnectedPart.ShipId != 0 && dock.DockedConnectedPart.ShipId != ship.State.Id)
                     yield return dock.DockedConnectedPart.ShipId;
             }
+            foreach (uint id in JointShips(ship))
+                yield return id;
+        }
+
+        // Vanilla rotor heads live on the joint cache. RotorState.AnchoredShipId can be 0 while the joint still holds.
+        static IEnumerable<uint> JointShips(TrackedShip ship)
+        {
+            ShipsJointsChangeProvider joints = Joints();
+            if (joints == null || ship == null || ship.State == null)
+                yield break;
+            foreach (RotorJointData joint in joints.GetShipRotorJoints(ship.State.Id))
+            {
+                if (joint.OtherShipId != 0 && joint.OtherShipId != ship.State.Id)
+                    yield return joint.OtherShipId;
+                uint host = joint.RotorPart.ShipId;
+                if (host != 0 && host != ship.State.Id)
+                    yield return host;
+            }
+        }
+
+        static ShipsJointsChangeProvider Joints()
+        {
+            ShipsJointsChangeProvider server = GameServices.Get<ShipsJointsChangeProviderServer>();
+            if (server != null)
+                return server;
+            return GameServices.Get<ShipsJointsChangeProviderClient>();
         }
 
         static IWorldTranspose Transpose()
@@ -530,6 +580,14 @@ namespace ShipSchematics
                 if (part != null && part.State is RotorState rotor && rotor.AnchoredShipId != 0)
                     yield return rotor.AnchoredShipId;
             }
+            ShipsJointsChangeProvider joints = Joints();
+            if (joints == null)
+                yield break;
+            foreach (RotorJointData joint in joints.GetShipRotorJoints(ship.State.Id))
+            {
+                if (joint.RotorPart.ShipId == ship.State.Id && joint.OtherShipId != 0 && joint.OtherShipId != ship.State.Id)
+                    yield return joint.OtherShipId;
+            }
         }
 
         static SerializableShip SerializeShip(TrackedShip ship, HashSet<uint> kept, List<PartSettings> used, out int partCount)
@@ -560,6 +618,7 @@ namespace ShipSchematics
                 StatefulParts = parts
             };
             SerializableShip serializable = Converter.ConvertToSerializable(new SavedShipStates(new IShipState[] { snapshot }))[0];
+            FillRotorTargets(serializable, ship);
             ClearTargets(serializable);
             RetargetLinks(serializable, id => kept.Contains(id) ? id : 0u);
             StripContents(serializable);
@@ -989,6 +1048,46 @@ namespace ShipSchematics
                 partNames = file.partNames ?? "",
                 fingerprint = Fingerprint(file),
                 preview = preview
+            };
+        }
+
+        public static string ToNetJson(SchematicFile file)
+        {
+            if (file == null || string.IsNullOrEmpty(file.shipJson))
+                return "";
+            SchematicPackage package = ToPackage(file);
+            package.preview = "";
+            return JsonUtility.ToJson(package);
+        }
+
+        public static SchematicFile FromNetJson(string json)
+        {
+            if (string.IsNullOrEmpty(json))
+                return null;
+            SchematicPackage package;
+            try
+            {
+                package = JsonUtility.FromJson<SchematicPackage>(json);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+            if (package == null || string.IsNullOrEmpty(package.shipJson))
+                return null;
+            CableRecord[] cables = PreferCables(package.cables, package.cableData);
+            return new SchematicFile
+            {
+                name = package.name,
+                shipJson = package.shipJson,
+                childShipJson = package.childShipJson ?? Array.Empty<string>(),
+                childCableData = package.childCableData ?? Array.Empty<string>(),
+                childPoses = package.childPoses ?? Array.Empty<string>(),
+                cables = cables,
+                cableData = FormatCables(cables),
+                linkData = package.linkData ?? "",
+                partNames = package.partNames ?? "",
+                fingerprint = package.fingerprint ?? ""
             };
         }
 
@@ -1539,6 +1638,36 @@ namespace ShipSchematics
         static void ClearTargets(SerializableShip ship)
         {
             ClearField(ship, "targeterStates", "hasTarget", false);
+        }
+
+        // A vanilla rotor can have a live joint while RotorState.AnchoredShipId is 0. Write the joint target so place
+        // can join the head again.
+        static void FillRotorTargets(SerializableShip serial, TrackedShip ship)
+        {
+            ShipsJointsChangeProvider joints = Joints();
+            if (serial == null || joints == null || ship == null || ship.State == null)
+                return;
+            ChangeEntries(serial, "rotorStates", item =>
+            {
+                FieldInfo anchored = item.GetType().GetField("anchoredShipId");
+                FieldInfo partId = item.GetType().GetField("partId");
+                FieldInfo offset = item.GetType().GetField("anchoredShipOffset");
+                if (anchored == null || partId == null)
+                    return false;
+                if ((uint)anchored.GetValue(item) != 0)
+                    return false;
+                ushort id = Convert.ToUInt16(partId.GetValue(item));
+                foreach (RotorJointData joint in joints.GetShipRotorJoints(ship.State.Id))
+                {
+                    if (joint.RotorPart.ShipId != ship.State.Id || joint.RotorPart.PartId != id || joint.OtherShipId == 0)
+                        continue;
+                    anchored.SetValue(item, joint.OtherShipId);
+                    if (offset != null)
+                        offset.SetValue(item, joint.OtherShipPosition);
+                    return true;
+                }
+                return false;
+            });
         }
 
         // Rotor, piston and docking links get the id that resolve returns for the ship they point to; 0 cuts the link.

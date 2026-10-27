@@ -12,7 +12,7 @@ using UnityEngine.InputSystem;
 using WorldTracking.Interface.Model.Spaces;
 using WorldTracking.Spaces;
 
-[assembly: MelonInfo(typeof(ShipSchematics.ShipSchematicsMod), "Ship Schematics", "1.0.2", "VILIK")]
+[assembly: MelonInfo(typeof(ShipSchematics.ShipSchematicsMod), "Ship Schematics", "1.0.3", "VILIK")]
 [assembly: MelonGame("CuriousOwlGames", "StellarDrive")]
 
 namespace ShipSchematics
@@ -64,6 +64,7 @@ namespace ShipSchematics
         {
             BlueprintWorld.Tick();
             ModMatch.Tick();
+            SchematicNet.Tick();
             ScreenMessages.Tick();
             Keyboard keyboard = Keyboard.current;
             if (keyboard == null)
@@ -278,11 +279,6 @@ namespace ShipSchematics
 
         void StartPlacement(SchematicFile file)
         {
-            if (!InstanceFinder.IsServerStarted)
-            {
-                Status("Only the host can place a ship.");
-                return;
-            }
             try
             {
                 PartCatalog survey = SchematicLibrary.Survey(file);

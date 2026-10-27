@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using Managers.Interface;
 using MelonLoader;
+using Players.Interface.Services;
 
 namespace ShipSchematics
 {
@@ -10,6 +11,22 @@ namespace ShipSchematics
     static class CreativeWorlds
     {
         public const string FileName = "creative.mode";
+
+        // A creative world, or the game's own free-build cheat (dev tools). Either one builds the ship at once.
+        public static bool InstantBuild()
+        {
+            if (IsCreative())
+                return true;
+            try
+            {
+                IPlayersProviderClient players = GameServices.Get<IPlayersProviderClient>();
+                return players != null && players.IsLocalPlayerUsingFreeBuildCheat();
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
 
         public static bool IsCreative()
         {

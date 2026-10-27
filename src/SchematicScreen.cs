@@ -95,8 +95,8 @@ namespace ShipSchematics
             try
             {
                 screen._onNotice = onNotice;
-                screen.FillLibrary(onPlace, onDelete);
-                return screen;
+            screen.FillLibrary(onPlace, onDelete);
+            return screen;
             }
             catch (Exception ex)
             {
@@ -115,7 +115,7 @@ namespace ShipSchematics
             try
             {
                 screen.FillSave(ship, file, suggestedName, alreadySaved, onSave);
-                return screen;
+            return screen;
             }
             catch (Exception ex)
             {
@@ -248,7 +248,7 @@ namespace ShipSchematics
                 return null;
             }
 
-            menu.enabled = false;
+                menu.enabled = false;
             Image background = menuObject.GetComponentInChildren<Image>();
             GameColorPalette palette = ScreenKit.Read<GameColorPalette>(menu, "colorPalette");
             if (background != null && palette != null)
